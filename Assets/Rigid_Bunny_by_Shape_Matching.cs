@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,6 +7,7 @@ public class Rigid_Bunny_by_Shape_Matching : MonoBehaviour
 {
 	public bool launched = false;
 	Vector3[] X;
+	Vector3[] TMP_X;
 	Vector3[] Q;
 	Vector3[] V;
 	Matrix4x4 QQt = Matrix4x4.zero;
@@ -17,6 +19,7 @@ public class Rigid_Bunny_by_Shape_Matching : MonoBehaviour
     	Mesh mesh = GetComponent<MeshFilter>().mesh;
         V = new Vector3[mesh.vertices.Length];
         X = mesh.vertices;
+        TMP_X = new Vector3[mesh.vertices.Length];
         Q = mesh.vertices;
 
         //Centerizing Q.
@@ -145,37 +148,212 @@ public class Rigid_Bunny_by_Shape_Matching : MonoBehaviour
    		for(int i=0; i<Q.Length; i++)
 		{
 			Vector3 x=(Vector3)(R*Q[i])+c;
+			
+			// if(i==0 && float.IsNaN(x.x))
+			// 	Debug.Log($"{x.x} {x.y} {x.z} {c} ");
 
-			V[i]+=(x-X[i])*inv_dt;
+			V[i]=(x-X[i])*inv_dt;
 			X[i]=x;
-		}	
-		Mesh mesh = GetComponent<MeshFilter>().mesh;
+		}
+        Mesh mesh = GetComponent<MeshFilter>().mesh;
 		mesh.vertices=X;
    	}
 
-	void Collision(float inv_dt)
+	//float restitution 	= 5f;		
+	//float friction 	= 0.3f;	
+	// void Collision(Vector3 P, Vector3 N)
+	// {
+	// 	//对每个点独立计算碰撞
+	// 	for (int i = 0; i < Q.Length; i++)
+	// 	{
+	// 		//如果点和平面不相交
+	// 		if (Vector3.Dot(P - X[i], N) < 0)
+	// 		{
+	// 			continue;
+	// 		}
+	// 		//如果是朝外运动，就不算了
+	// 		if (Vector3.Dot(V[i], N) > 0)
+	// 		{
+	// 			continue;
+	// 		}
+	// 		//否则收到冲量，改变速度
+	// 		Vector3 VN = Vector3.Dot(V[i], N)*N;
+	// 		Vector3 VT = V[i] - VN;
+	// 		Vector3 newVN = -restitution * VN;
+	// 		Vector3 newVT = VT * Math.Max(0, 1 - friction * (1 + restitution) * VN.magnitude / VT.magnitude);
+	// 		Vector3 new_V = newVN + newVT;
+	// 		V[i] = new_V;
+	// 	}
+	// 	
+	// }
+	
+	float restitution 	= 0.5f;		
+	float friction 	= 0.5f;	
+	
+	void Collision(Vector3 P, Vector3 N)
 	{
+		//对每个点独立计算碰撞
+		for (int i = 0; i < Q.Length; i++)
+		{
+			//如果点和平面不相交
+			if (Vector3.Dot(P - TMP_X[i], N) < 0)
+			{
+				continue;
+			}
+			
+			//如果是朝外运动，就移动到表面，速度如果小于某个阈值，也移动到表面
+			//这样反弹会太强
+			if (Vector3.Dot(V[i], N) > 0)
+			{
+				//TMP_X[i] += Vector3.Dot(V[i], N) * N;
+				continue;
+			}
+			//速度如果小于某个阈值，也移动到表面
+			if (V[i].magnitude < 0.001)
+			{
+				TMP_X[i] += Vector3.Dot(P - TMP_X[i], N) * N;
+				if (float.IsNaN(TMP_X[i].x))
+				{
+	        
+				}
+				continue;
+			}
+			//应当模拟一个点在dt时间内撞墙后反弹的效果
+			//实际进入物体的位移应当转化成在反弹方向上的位移
+			//位移也分为N和T方向，两个方向位移转化比例等同于速度
+			Vector3 XN_in = Vector3.Dot(TMP_X[i]-P, N) * N; //N方向上进入的位移
+			Vector3 XN = Vector3.Dot(TMP_X[i]-X[i], N) * N;//dt时间内N方向上总位移
+			Vector3 _X = TMP_X[i]- X[i];//dt时间内位移
+			Vector3 XT = _X - XN;//dt时间内T方向上总位移
+			//如果N方向位移过小，表示已经贴近边缘，也移动到表面
+			if (XN.magnitude < 0.0001)
+			{
+				TMP_X[i] += Vector3.Dot(P - TMP_X[i], N) * N;
+				continue;
+			}
+			Vector3 XT_in = XN_in.magnitude/XN.magnitude*XT; //T方向上进入的位移
+			
+			//弹射后N T两方向上的位移
+			Vector3 XN_out = -restitution * XN_in;
+			Vector3 XT_out = XT_in.magnitude < 0.0001 ? Vector3.zero : XT_in * Math.Max(0, 1 - friction * (1 + restitution) * XN_in.magnitude / XT_in.magnitude);
+			
+			//位移修正
+			TMP_X[i] = TMP_X[i] - XN_in - XT_in + XN_out + XT_out;
+			if (float.IsNaN(TMP_X[i].x))
+			{
+	        
+			}
+			// Vector3 fix = -XN_in - XT_in + XN_out + XT_out;
+			// if(i==0)
+			// 	Debug.Log($"{fix.x} {fix.y} {fix.z}");
+		}
+		
 	}
-
+	
+	float linear_decay	= 0.99f;
+	float g = 9.8f;
+	float dt = 0.015f;
     // Update is called once per frame
     void Update()
     {
-  		float dt = 0.015f;
+	    if(Input.GetKey("r"))
+        {
+	        for(int i=0; i<V.Length; i++)
+	        {
+		        V[i] = Vector3.zero;
+	        }
+	        Update_Mesh(new Vector3 (0, 0.6f, 0), Matrix4x4.Rotate(Quaternion.identity), 0);
+	        launched=false;
+        }
+        if(Input.GetKey("l"))
+        {
+	        for(int i=0; i<V.Length; i++)
+	        {
+		        V[i] = new Vector3 (5, 2, 0);
+	        }
+	        launched=true;
+        }
 
+        if (!launched)
+        {
+	        return;
+        }
   		//Step 1: run a simple particle system.
         for(int i=0; i<V.Length; i++)
         {
+	        V[i].y -= dt * g;
+	        V[i] *= linear_decay;
+	        TMP_X[i] = X[i] + dt * V[i];
         }
 
         //Step 2: Perform simple particle collision.
-		Collision(1/dt);
-
+		//碰撞改变速度，墙里的点获得向外的速度
+		//Collision(new Vector3(0, 0.01f, 0), new Vector3(0, 1, 0));
+		// Collision(new Vector3(2, 0, 0), new Vector3(-1, 0, 0));
+		// //根据新速度计算位置
+		// for(int i=0; i<V.Length; i++)
+		// {
+		// 	TMP_X[i] = X[i] + dt * V[i];
+		// }
+		//将点移动至平面外
+		Collision(new Vector3(0, 0.01f, 0), new Vector3(0, 1, 0));
+		Collision(new Vector3(2, 0, 0), new Vector3(-1, 0, 0));
+		
 		// Step 3: Use shape matching to get new translation c and 
 		// new rotation R. Update the mesh by c and R.
         //Shape Matching (translation)
-		
-		//Shape Matching (rotation)
-		
-		//Update_Mesh(c, R, 1/dt);
+        Vector3 c = Vector3.zero;
+        for (int i = 0; i < X.Length; i++)
+        {
+	        if (float.IsNaN(TMP_X[i].x))
+	        {
+	        
+	        }
+	        c += TMP_X[i];
+        }
+        c /= X.Length;
+        //Shape Matching (rotation)
+        Matrix4x4 A = Matrix4x4.zero;
+        for (int i = 0; i < X.Length; i++)
+        {
+	        A = MatrixAdd(A,Vec3MulVec3(TMP_X[i]-c,Q[i]));
+        }
+        A[3, 3] = 1;
+        A *= QQt.inverse;
+        Matrix4x4 R = Get_Rotation(A);
+        if (float.IsNaN(c.x))
+        {
+	        
+        }
+        Update_Mesh(c, R, 1/dt);
+    }
+
+    private Matrix4x4 Vec3MulVec3(Vector3 v1, Vector3 v2)
+    {
+	    Matrix4x4 ret = Matrix4x4.zero;
+	    for (int i = 0; i < 3; i++)
+	    {
+		    for (int j = 0; j < 3; j++)
+		    {
+			    ret[i, j] = v1[i] * v2[j];
+		    }
+	    }
+
+	    ret[3, 3] = 1;
+	    return ret;
+    }
+    
+    private Matrix4x4 MatrixAdd(Matrix4x4 m1, Matrix4x4 m2)
+    {
+	    Matrix4x4 ret = new Matrix4x4();
+	    for (int i = 0; i < 4; i++)
+	    {
+		    for (int j = 0; j < 4; j++)
+		    {
+			    ret[i, j] = m1[i, j] + m2[i, j];
+		    }
+	    }
+
+	    return ret;
     }
 }

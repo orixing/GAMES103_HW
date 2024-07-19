@@ -101,7 +101,7 @@ public class Rigid_Bunny : MonoBehaviour
 		Vector3 avgPointTotalVN = Vector3.Dot(avgPointTotalV, N) * N;
 		Vector3 avgPointTotalVT = avgPointTotalV - avgPointTotalVN;
 		Vector3 new_VN = -restitution * avgPointTotalVN;
-		Vector3 new_VT = avgPointTotalVT * Math.Max(0, 1 - friction * (1 + restitution) * avgPointTotalVN.magnitude / avgPointTotalVT.magnitude);
+		Vector3 new_VT = avgPointTotalVT.magnitude<0.0001?Vector3.zero:avgPointTotalVT * Math.Max(0, 1 - friction * (1 + restitution) * avgPointTotalVN.magnitude / avgPointTotalVT.magnitude);
 		Vector3 new_V = new_VN + new_VT;
 		//根据新旧速度算冲量
 		Matrix4x4 rotationMatrix = Matrix4x4.Rotate(transform.rotation);
