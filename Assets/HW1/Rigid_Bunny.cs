@@ -14,8 +14,8 @@ public class Rigid_Bunny : MonoBehaviour
 
 	float linear_decay	= 0.999f;				// for velocity decay
 	float angular_decay	= 0.98f;				
-	float restitution 	= 0.5f;					// for collision
-	float friction 	= 0.3f;	
+	float restitution 	= 0.4f;					// for collision
+	float friction 	= 0.5f;	
 
 	float g = 9.8f;
 
@@ -187,6 +187,7 @@ public class Rigid_Bunny : MonoBehaviour
 		// Part IV: Assign to the object
 		transform.position = x;
 		transform.rotation = q;
+		Debug.Log($"{v.x},{v.y},{v.z}");
 	}
 
 	private Quaternion QuaternionAdd(Quaternion q1, Quaternion q2)

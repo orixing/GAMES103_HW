@@ -52,8 +52,12 @@
     <ImplicitlyExpandDesignTimeFacades>false</ImplicitlyExpandDesignTimeFacades>
   </PropertyGroup>
   <ItemGroup>
-     <Compile Include="Assets\Rigid_Bunny.cs" />
-     <Compile Include="Assets\Rigid_Bunny_by_Shape_Matching.cs" />
+     <Compile Include="Assets\HW1\Rigid_Bunny.cs" />
+     <Compile Include="Assets\HW1\Rigid_Bunny_by_Shape_Matching.cs" />
+     <Compile Include="Assets\HW2\sphere_motion.cs" />
+     <Compile Include="Assets\HW2\PBD_model.cs" />
+     <Compile Include="Assets\HW2\implicit_model.cs" />
+     <None Include="Assets\HW2\Mats\cloth_shader.shader" />
  <Reference Include="UnityEngine">
  <HintPath>C:/Program Files/Unity/Hub/Editor/2020.3.14f1/Editor/Data/Managed/UnityEngine/UnityEngine.dll</HintPath>
  </Reference>
