@@ -156,7 +156,15 @@ public class implicit_model : MonoBehaviour
 		for (int i = 0; i < E.Length/2; i++)
 		{
 			//E存储的是顶点索引
-			
+			int vi = E[i * 2];
+			int vj = E[i * 2+1];
+			//隐式积分使用的是新时刻的力
+			Vector3 Xi = X_hat[vi];
+			Vector3 Xj = X_hat[vj];
+			Vector3 f = spring_k * (1 - L[i] / (Xi - Xj).magnitude) * (Xi - Xj);
+			//受这个边影响的两个点修改受力
+			G[vi] += f;
+			G[vj] -= f;
 		}
 		
 	}
