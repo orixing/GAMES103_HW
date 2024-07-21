@@ -209,6 +209,7 @@ public class implicit_model : MonoBehaviour
 		    Get_Gradient(X, X_hat, t, G);
 		    //假设H是对角矩阵
 		    float H = 1f / (t * t) * mass + 4 * spring_k;
+		    float w = 0f;//切比雪夫加速
 		    //Update X by gradient.
 		    for (int i = 0; i < X.Length; i++)
 		    {
@@ -217,15 +218,22 @@ public class implicit_model : MonoBehaviour
 				    continue;
 			    }
 
-			    last_X[i] = X[i];
+			    Vector3 oldX = X[i];
 			    X[i] += -G[i] * (1 / H);
 
+			    if (k == 0) w = 1;
+			    else if (k == 1) w = 2 / (2 - rho * rho);
+			    else w = 4/(4-w*rho * rho);
+
+			    X[i] = w * X[i] + (1 - w) * last_X[i];
 
 			    //是否需要继续迭代
 			    if (Mathf.Abs(last_X[i].magnitude - X[i].magnitude) > 0.0001f)
 			    {
 				    needLoop = true;
 			    }
+
+			    last_X[i] = oldX;
 		    }
 
 		    //是否需要继续迭代
