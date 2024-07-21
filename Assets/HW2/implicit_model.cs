@@ -13,6 +13,7 @@ public class implicit_model : MonoBehaviour
 	float[] 	L;
 	Vector3[] 	V;
 	float g = 9.8f;
+	public GameObject sphere;
 	
 	 // Start is called before the first frame update
     void Start()
@@ -137,6 +138,17 @@ public class implicit_model : MonoBehaviour
 		Vector3[] X = mesh.vertices;
 		
 		//Handle colllision.
+		for (int i = 0; i < X.Length; i++)
+		{
+			float r = 2.7f;
+			Vector3 c = sphere.transform.position;
+			//离球心的距离小于r
+			if ((X[i] - c).magnitude < r)
+			{
+				V[i] = V[i] + (1 / t) * (c + r * ((X[i] - c).normalized) - X[i]);
+				X[i] = c + r * ((X[i] - c).normalized);
+			}
+		}
 
 		mesh.vertices = X;
 	}
@@ -147,7 +159,7 @@ public class implicit_model : MonoBehaviour
 		{
 			G[i] = 1f / (t * t) * mass * (X[i] - X_hat[i]);
 			//再算上重力
-			G[i].y -= mass * g;
+			G[i].y += mass * g;
 		}
 		
 		//Momentum and Gravity.
@@ -158,9 +170,9 @@ public class implicit_model : MonoBehaviour
 			//E存储的是顶点索引
 			int vi = E[i * 2];
 			int vj = E[i * 2+1];
-			//隐式积分使用的是新时刻的力
-			Vector3 Xi = X_hat[vi];
-			Vector3 Xj = X_hat[vj];
+			
+			Vector3 Xi = X[vi];
+			Vector3 Xj = X[vj];
 			Vector3 f = spring_k * (1 - L[i] / (Xi - Xj).magnitude) * (Xi - Xj);
 			//受这个边影响的两个点修改受力
 			G[vi] += f;
@@ -170,34 +182,67 @@ public class implicit_model : MonoBehaviour
 	}
 
     // Update is called once per frame
-	void Update () 
-	{
-		Mesh mesh = GetComponent<MeshFilter> ().mesh;
-		Vector3[] X 		= mesh.vertices;
-		Vector3[] last_X 	= new Vector3[X.Length];
-		Vector3[] X_hat 	= new Vector3[X.Length];
-		Vector3[] G 		= new Vector3[X.Length];
+    void Update()
+    {
+	    Mesh mesh = GetComponent<MeshFilter>().mesh;
+	    Vector3[] X = mesh.vertices;
+	    Vector3[] last_X = new Vector3[X.Length];
+	    Vector3[] X_hat = new Vector3[X.Length];
+	    Vector3[] G = new Vector3[X.Length];
 
-		//Initial Setup.
+	    //Initial Setup.
 
-		for (int i = 0; i < V.Length; i++)
-		{
-			V[i] *= damping;
-			X_hat[i] = X[i] + t * V[i];
-			X[i] = X_hat[i];
-		}
+	    for (int i = 0; i < V.Length; i++)
+	    {
+		    V[i] *= damping;
+		    //存储x0
+		    X_hat[i] = X[i];
+		    //预测x1
+		    X[i] = X[i] + t * V[i];
+	    }
 
-		for(int k=0; k<32; k++)
-		{
-			//求一次X_hat处的导数，根据这个只做一次牛顿迭代
-			Get_Gradient(X, X_hat, t, G);
-			
-			//Update X by gradient.
-			
-		}
+	    //做32次牛顿迭代
+	    for (int k = 0; k < 32; k++)
+	    {
+		    bool needLoop = false;
+		    //求X处的导数
+		    Get_Gradient(X, X_hat, t, G);
+		    //假设H是对角矩阵
+		    float H = 1f / (t * t) * mass + 4 * spring_k;
+		    //Update X by gradient.
+		    for (int i = 0; i < X.Length; i++)
+		    {
+			    if (i == 0 || i == 20)
+			    {
+				    continue;
+			    }
 
-		//Finishing.
-		
+			    last_X[i] = X[i];
+			    X[i] += -G[i] * (1 / H);
+
+
+			    //是否需要继续迭代
+			    if (Mathf.Abs(last_X[i].magnitude - X[i].magnitude) > 0.0001f)
+			    {
+				    needLoop = true;
+			    }
+		    }
+
+		    //是否需要继续迭代
+		    if (!needLoop)
+		    {
+			    break;
+		    }
+
+	    }
+
+	    //Finishing.
+	    //更新速度
+	    for (int i = 0; i < X.Length; i++)
+	    {
+		    V[i] = (X[i] - X_hat[i]) / t;
+	    }
+
 		mesh.vertices = X;
 
 		Collision_Handling ();
