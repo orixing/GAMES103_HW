@@ -195,8 +195,7 @@ public class implicit_model : MonoBehaviour
 	    for (int i = 0; i < V.Length; i++)
 	    {
 		    V[i] *= damping;
-		    //存储x0
-		    X_hat[i] = X[i];
+		    X_hat[i] = X[i] + t * V[i];
 		    //预测x1
 		    X[i] = X[i] + t * V[i];
 	    }
@@ -248,7 +247,7 @@ public class implicit_model : MonoBehaviour
 	    //更新速度
 	    for (int i = 0; i < X.Length; i++)
 	    {
-		    V[i] = (X[i] - X_hat[i]) / t;
+		    V[i] += (X[i] - X_hat[i]) / t;
 	    }
 
 		mesh.vertices = X;

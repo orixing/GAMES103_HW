@@ -8,8 +8,9 @@ public class PBD_model: MonoBehaviour {
 	int[] 		E;
 	float[] 	L;
 	Vector3[] 	V;
+	float g = 9.8f;
 
-
+	public GameObject sphere;
 	// Use this for initialization
 	void Start () 
 	{
@@ -132,7 +133,32 @@ public class PBD_model: MonoBehaviour {
 		Vector3[] vertices = mesh.vertices;
 
 		//Apply PBD here.
-		//...
+		//每个顶点收到的来自所有边位移影响
+		//存储总和和计数，求平均
+		Vector3[] sum_X = new Vector3[vertices.Length];
+		int[] sum_N = new int[vertices.Length];
+
+		for (int i = 0; i < E.Length/2; i++)
+		{
+			int index_I = E[i * 2];
+			int index_J = E[i * 2 + 1];
+
+			sum_X[index_I] = sum_X[index_I] + (L[i] * (vertices[index_I] - vertices[index_J]).normalized +
+			                                   vertices[index_I] + vertices[index_J]) / 2f;
+			sum_X[index_J] = sum_X[index_J] + (L[i] * -(vertices[index_I] - vertices[index_J]).normalized +
+			                                   vertices[index_I] + vertices[index_J]) / 2f;
+
+			sum_N[index_I]++;
+			sum_N[index_J]++;
+		}
+
+		for (int i = 0; i < vertices.Length; i++)
+		{
+			if(i==0 || i==20)	continue;
+			V[i] += ((0.2f * vertices[i] + sum_X[i]) / (0.2f + sum_N[i]) - vertices[i])/t;
+			vertices[i] = (0.2f * vertices[i] + sum_X[i]) / (0.2f + sum_N[i]);
+		}
+		
 		mesh.vertices = vertices;
 	}
 
@@ -141,8 +167,19 @@ public class PBD_model: MonoBehaviour {
 		Mesh mesh = GetComponent<MeshFilter> ().mesh;
 		Vector3[] X = mesh.vertices;
 		
-		//For every vertex, detect collision and apply impulse if needed.
-		//...
+		//Handle colllision.
+		for (int i = 0; i < X.Length; i++)
+		{
+			float r = 2.7f;
+			Vector3 c = sphere.transform.position;
+			//离球心的距离小于r
+			if ((X[i] - c).magnitude < r)
+			{
+				V[i] = V[i] + (1 / t) * (c + r * ((X[i] - c).normalized) - X[i]);
+				X[i] = c + r * ((X[i] - c).normalized);
+			}
+		}
+
 		mesh.vertices = X;
 	}
 
@@ -156,7 +193,10 @@ public class PBD_model: MonoBehaviour {
 		{
 			if(i==0 || i==20)	continue;
 			//Initial Setup
-			//...
+			V[i] *= damping;
+			V[i].y -= t * g;
+			//每个点独立计算X
+			X[i] += V[i] * t;
 		}
 		mesh.vertices = X;
 
